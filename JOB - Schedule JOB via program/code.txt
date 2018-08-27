@@ -1,0 +1,38 @@
+	DATA: l_jobcount TYPE tbtcjob-jobcount,
+          l_jobname  TYPE tbtcjob-jobname.
+
+    CONCATENATE 'ENTRADA_CRED_JUNIX' i_tipo_lancamento INTO l_jobname SEPARATED BY '_'.
+
+    CALL FUNCTION 'JOB_OPEN'
+      EXPORTING
+        jobname          = l_jobname
+      IMPORTING
+        jobcount         = l_jobcount
+      EXCEPTIONS
+        cant_create_job  = 1
+        invalid_job_data = 2
+        jobname_missing  = 3
+        OTHERS           = 4.
+
+    IF sy-subrc IS INITIAL.
+      "Executa Reajuste
+      SUBMIT zfir0008 WITH s_docuc-low = i_tipo_lancamento
+                      WITH p_lancar = 'X'
+                      VIA JOB l_jobname
+                      NUMBER l_jobcount
+                      AND RETURN.
+
+      CALL FUNCTION 'JOB_CLOSE'
+        EXPORTING
+          jobcount          = l_jobcount
+          jobname           = l_jobname
+          strtimmed         = 'X' " Immediate
+        EXCEPTIONS
+          invalid_startdate = 1
+          jobname_missing   = 2
+          job_close_failed  = 3
+          job_nosteps       = 4
+          job_notex         = 5
+          lock_failed       = 6
+          OTHERS            = 7.
+    ENDIF.
